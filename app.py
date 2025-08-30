@@ -2,7 +2,8 @@ import os
 import json
 import random
 import requests
-from flask import Flask, request, jsonify, send_from_directory
+import io
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -14,28 +15,35 @@ CORS(app)
 
 MODEL_NAME = "gemini-1.5-flash-latest"
 
-# Configure the Gemini API
 try:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(MODEL_NAME)
     print(f"✅ Gemini API configured successfully with model: {MODEL_NAME}")
 except Exception as e:
-    print(f"❌ CRITICAL: Failed to configure Gemini API. Please check your API key. Error: {e}")
     model = None
+    print(f"❌ CRITICAL: Failed to configure Gemini API. Error: {e}")
 
-# --- IMGFLIP API CREDENTIALS ---
 IMGFLIP_USERNAME = os.getenv("IMGFLIP_USERNAME")
 IMGFLIP_PASSWORD = os.getenv("IMGFLIP_PASSWORD")
 IMGFLIP_API_URL = "https://api.imgflip.com/caption_image"
 
-# --- MEME DATABASE (from CSV) ---
+# --- DATABASES ---
+TRENDING_TOPICS = [
+    {"name": "Taylor Swift's engagement news"},
+    {"name": "Demon Slayer Infinity Castle"},
+    {"name": "Attack on titan"},
+    {"name": "Vote Scam India"},
+    {"name": "Global climate change summit"},
+    {"name": "Recent viral video challenges"},
+]
+
 MEMES_DATA = [
     {"id": "112126428", "name": "Distracted Boyfriend", "description": "A man looking at another woman while his girlfriend looks on disapprovingly.", "box_count": 3, "base_url": "https://i.imgflip.com/1ur9b0.jpg"},
     {"id": "438680", "name": "Batman Slapping Robin", "description": "Batman slapping Robin, often used to correct a foolish statement.", "box_count": 2, "base_url": "https://i.imgflip.com/9ehk.jpg"},
     {"id": "87743020", "name": "Two Buttons", "description": "A character sweating while trying to choose between two buttons, representing a difficult choice.", "box_count": 2, "base_url": "https://i.imgflip.com/1g8my4.jpg"},
     {"id": "181913649", "name": "Drake Hotline Bling", "description": "Drake looking displeased at one option and pleased at another.", "box_count": 2, "base_url": "https://i.imgflip.com/30b1gx.jpg"},
     {"id": "61579", "name": "One Does Not Simply", "description": "Boromir from Lord of the Rings explaining a task is harder than it seems.", "box_count": 2, "base_url": "https://i.imgflip.com/1b42.jpg"},
-    {"id": "102156234", "name": "Mocking Spongebob", "description": "Spongebob making a mocking face, used to repeat someone's words sarcastically.", "box_count": 2, "base_url": "https://i.imgflip.com/1bh8.jpg"},
+    {"id": "102156234", "name": "Mocking Spongebob", "description": "Spongebob making a mocking face, used to repeat someone's words sarcastically.", "box_count": 2, "base_url": "https://i.imgflip.com/1otk96.jpg"},
     {"id": "93895088", "name": "Expanding Brain", "description": "Images showing an increasingly enlightened or absurd state of mind.", "box_count": 4, "base_url": "https://i.imgflip.com/1jwhww.jpg"},
     {"id": "129242436", "name": "Change My Mind", "description": "Steven Crowder at a table with a sign, inviting debate on a controversial topic.", "box_count": 2, "base_url": "https://i.imgflip.com/24y43o.jpg"},
     {"id": "124822590", "name": "Left Exit 12 Off Ramp", "description": "A car swerving dramatically to take an off-ramp, representing a sudden, decisive choice.", "box_count": 3, "base_url": "https://i.imgflip.com/22bdq6.jpg"},
@@ -58,6 +66,7 @@ MEMES_DATA = [
     {"id": "148909805", "name": "Monkey Puppet", "description": "A puppet looking away awkwardly, representing an uncomfortable or tense situation.", "box_count": 2, "base_url": "https://i.imgflip.com/2gnnjh.jpg"},
     {"id": "27813981", "name": "Hide the Pain Harold", "description": "An elderly man smiling while looking uncomfortable, masking pain or distress.", "box_count": 2, "base_url": "https://i.imgflip.com/8p4j.jpg"},
     {"id": "4087833", "name": "Waiting Skeleton", "description": "A skeleton waiting on a bench, representing a very long wait for something.", "box_count": 2, "base_url": "https://i.imgflip.com/2fm6x.jpg"},
+    {"id": "131940431", "name": "Gru's Plan", "description": "A four-panel comic showing a plan with an unexpected and usually bad final step.", "box_count": 4, "base_url": "https://i.imgflip.com/1u1vo7.jpg"},
     {"id": "79132341", "name": "Bike Fall", "description": "A person putting a stick in their own bicycle wheel, representing self-sabotage.", "box_count": 3, "base_url": "https://i.imgflip.com/1f3mnm.jpg"},
     {"id": "61544", "name": "Success Kid", "description": "A baby clenching his fist in a determined way, celebrating a small victory.", "box_count": 2, "base_url": "https://i.imgflip.com/1b41.jpg"},
     {"id": "110163934", "name": "I Bet He's Thinking About Other Women", "description": "A woman in bed thinking her partner is thinking of other women, while he's thinking of something absurd.", "box_count": 2, "base_url": "https://i.imgflip.com/1tl71a.jpg"},
@@ -82,7 +91,7 @@ MEMES_DATA = [
     {"id": "19665182", "name": "I'm The Captain Now", "description": "A character from 'Captain Phillips' declaring his new authority.", "box_count": 2, "base_url": "https://i.imgflip.com/4t0.jpg"},
     {"id": "101288", "name": "Third World Success Kid", "description": "A dancing child celebrating a minor success in a third-world context.", "box_count": 2, "base_url": "https://i.imgflip.com/1b7q.jpg"},
     {"id": "101956", "name": "Yo Dawg Heard You", "description": "Xzibit explaining a recursive concept, like putting a thing inside the same thing.", "box_count": 2, "base_url": "https://i.imgflip.com/1b8f.jpg"},
-    {"id": "8072285", "name": "Doge", "description": "The Shiba Inu dog, surrounded by colorful Comic Sans text representing internal monologue.", "box_count": 5, "base_url": "https://i.imgflip.com/4t0.jpg"},
+    {"id": "8072285", "name": "Doge", "description": "The Shiba Inu dog, surrounded by colorful Comic Sans text representing internal monologue.", "box_count": 2, "base_url": "https://i.imgflip.com/4t0.jpg"},
     {"id": "124055727", "name": "Y'all Got Any More Of That", "description": "A character from 'Chappelle's Show' frantically scratching his neck, asking for more of something.", "box_count": 2, "base_url": "https://i.imgflip.com/21uy0f.jpg"},
     {"id": "14230520", "name": "Black Girl Wat", "description": "A girl with a confused expression, representing bewilderment.", "box_count": 2, "base_url": "https://i.imgflip.com/2n25.jpg"},
     {"id": "61585", "name": "Bad Luck Brian", "description": "A nerdy-looking teenager in a series of unfortunate situations.", "box_count": 2, "base_url": "https://i.imgflip.com/1b52.jpg"},
@@ -135,71 +144,112 @@ MEMES_DATA = [
     {"id": "1790995", "name": "And everybody loses their minds", "description": "The Joker from 'The Dark Knight' describing a chaotic public reaction.", "box_count": 2, "base_url": "https://i.imgflip.com/2670.jpg"}
 ]
 
+
+# --- HELPER FUNCTIONS ---
+def get_ai_response(prompt):
+    if not model:
+        raise Exception("AI model is not available.")
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        raise Exception(f"Gemini API Error: {e}")
+
+def get_meme_by_id(template_id):
+    return next((meme for meme in MEMES_DATA if meme['id'] == template_id), None)
+
 # --- API ROUTES ---
 
-@app.route('/api/generate', methods=['POST'])
-def generate_suggestions():
-    if not model:
-        return jsonify({"error": "AI model is not available."}), 503
-
+@app.route('/api/lucky', methods=['POST'])
+def lucky_generate():
     data = request.get_json()
     if not data or 'topic' not in data:
         return jsonify({"error": "No topic provided."}), 400
     
     topic = data['topic']
-    
     try:
-        # Step 1: Select the Best Meme Template with Gemini
         meme_options_text = "\n".join([f"- {meme['name']}: {meme['description']}" for meme in MEMES_DATA])
-        template_prompt = f"""
-        You are a meme selection expert. Based on the topic below, choose the single most appropriate meme template from the list.
-        Your answer must be ONLY the name of the meme template, spelled exactly as it appears in the list.
-        Topic: "{topic}"
-        List of available templates:\n{meme_options_text}\nSelected Template Name:
-        """
-        template_response = model.generate_content(template_prompt)
-        selected_template_name = template_response.text.strip()
+        template_prompt = f"Choose the single most appropriate meme template for the topic '{topic}' from this list:\n{meme_options_text}\n\nYour answer must be ONLY the name of the meme template, spelled exactly."
         
+        selected_template_name = get_ai_response(template_prompt)
         selected_meme = next((meme for meme in MEMES_DATA if meme['name'].lower() == selected_template_name.lower()), None)
         if not selected_meme:
-            selected_meme = random.choice(MEMES_DATA)
+            selected_meme = random.choice(MEMES_DATA) # Fallback
 
-        # Step 2: Generate Captions for the Chosen Template with Gemini
-        caption_prompt = f"""
-        You are a viral meme expert. Your task is to create text for a meme.
-        The meme is '{selected_meme['name']}'. It has {selected_meme['box_count']} text boxes.
-        The overall topic is "{topic}".
-        Generate a short, witty text for each of the {selected_meme['box_count']} boxes.
-        Your response must be a valid JSON array of strings.
-        Example for 2 boxes: ["Text for box 1", "Text for box 2"]
-        """
-        caption_response = model.generate_content(caption_prompt)
-        cleaned_json_text = caption_response.text.strip().replace("```json", "").replace("```", "")
+        caption_prompt = f"Create text for the '{selected_meme['name']}' meme which has {selected_meme['box_count']} text boxes. The topic is '{topic}'. Your response must be a valid JSON array of strings. Example: [\"Text 1\", \"Text 2\"]"
+        
+        cleaned_json_text = get_ai_response(caption_prompt).replace("```json", "").replace("```", "")
         captions = json.loads(cleaned_json_text)
 
-        # Step 3: Construct the response for the frontend editor
         response_data = {
-            "template": {
-                "id": selected_meme["id"],
-                "name": selected_meme["name"],
-                "base_url": selected_meme["base_url"],
-                "box_count": selected_meme["box_count"]
-            },
+            "template": selected_meme,
             "captions": captions
         }
         return jsonify(response_data)
-
     except Exception as e:
-        print(f"❌ An error occurred during AI generation: {e}")
-        return jsonify({"error": "Failed to generate AI suggestions."}), 500
+        print(f"❌ Error in /lucky: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/search', methods=['POST'])
+def search_templates():
+    data = request.get_json()
+    if not data or 'topic' not in data:
+        return jsonify({"error": "No topic provided."}), 400
+        
+    topic = data['topic']
+    try:
+        meme_options_text = "\n".join([f"- {meme['name']}: {meme['description']}" for meme in MEMES_DATA])
+        template_prompt = f"Choose the top 5 most relevant meme templates for the topic '{topic}' from this list:\n{meme_options_text}\n\nYour response must be a valid JSON array of the 5 exact template names. Example: [\"Name 1\", \"Name 2\", \"Name 3\", \"Name 4\", \"Name 5\"]"
+        
+        cleaned_json_text = get_ai_response(template_prompt).replace("```json", "").replace("```", "")
+        selected_names = json.loads(cleaned_json_text)
+        
+        results = []
+        for name in selected_names:
+            found_meme = next((meme for meme in MEMES_DATA if meme['name'].lower() == name.lower()), None)
+            if found_meme:
+                results.append(found_meme)
+
+        return jsonify(results)
+    except Exception as e:
+        print(f"❌ Error in /search: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/caption', methods=['POST'])
+def generate_caption_for_template():
+    data = request.get_json()
+    if not data or 'topic' not in data or 'template_id' not in data:
+        return jsonify({"error": "Missing topic or template_id."}), 400
+    
+    topic = data['topic']
+    template_id = data['template_id']
+    selected_meme = get_meme_by_id(template_id)
+
+    if not selected_meme:
+        return jsonify({"error": "Template not found."}), 404
+
+    try:
+        caption_prompt = f"Create text for the '{selected_meme['name']}' meme which has {selected_meme['box_count']} text boxes. The topic is '{topic}'. Your response must be a valid JSON array of strings. Example: [\"Text 1\", \"Text 2\"]"
+        
+        cleaned_json_text = get_ai_response(caption_prompt).replace("```json", "").replace("```", "")
+        captions = json.loads(cleaned_json_text)
+        
+        response_data = {
+            "template": selected_meme,
+            "captions": captions
+        }
+        return jsonify(response_data)
+    except Exception as e:
+        print(f"❌ Error in /caption: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/customize', methods=['POST'])
 def customize_meme():
     if not IMGFLIP_USERNAME or not IMGFLIP_PASSWORD:
-        return jsonify({"error": "Imgflip credentials are not set on the server."}), 503
+        return jsonify({"error": "Imgflip credentials not set."}), 503
 
     data = request.get_json()
-    if not data or 'template_id' not in data or 'texts' not in data:
+    if 'template_id' not in data or 'texts' not in data:
         return jsonify({"error": "Missing template_id or texts."}), 400
 
     payload = {
@@ -211,25 +261,47 @@ def customize_meme():
         payload[f'boxes[{i}][text]'] = text
 
     try:
-        imgflip_response = requests.post(IMGFLIP_API_URL, data=payload)
-        imgflip_data = imgflip_response.json()
-
-        if not imgflip_data.get("success"):
-            raise Exception(imgflip_data.get('error_message', 'Unknown Imgflip error'))
-
-        response_data = {
-            "url": imgflip_data["data"]["url"]
-        }
-        return jsonify(response_data)
-        
+        response = requests.post(IMGFLIP_API_URL, data=payload)
+        response_data = response.json()
+        if not response_data.get("success"):
+            raise Exception(response_data.get('error_message', 'Unknown Imgflip error'))
+        return jsonify({"url": response_data["data"]["url"]})
     except Exception as e:
-        print(f"❌ An error occurred during Imgflip API call: {e}")
         return jsonify({"error": str(e)}), 500
 
-# --- Serve the Frontend ---
+@app.route('/api/trending', methods=['GET'])
+def get_trending_topics():
+    return jsonify(TRENDING_TOPICS)
+
+# --- NEW: Universal Image Proxy Endpoint ---
+@app.route('/api/proxy')
+def proxy_image():
+    url = request.args.get('url')
+    if not url:
+        return jsonify({"error": "No URL provided."}), 400
+    
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        
+        content_type = response.headers.get('Content-Type', 'image/jpeg')
+        
+        return send_file(
+            io.BytesIO(response.content),
+            mimetype=content_type
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error fetching image from {url}: {e}")
+        return jsonify({"error": "Failed to fetch image."}), 502
+    except Exception as e:
+        print(f"❌ Error in image proxy: {e}")
+        return jsonify({"error": "An internal error occurred."}), 500
+
+# --- Serve Frontend ---
 @app.route('/')
 def serve_index():
     return send_from_directory('.', 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True, port=int(os.getenv("PORT", 5000)))
+
