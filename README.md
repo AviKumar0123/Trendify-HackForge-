@@ -13,13 +13,6 @@ Currently, the **frontend is functional** (built with TailwindCSS), while the **
 
 ---
 
-## Live Demo
-
-Coming soon.  
-(For now, you can clone the repository and open `index.html` in a browser to try the UI.)
-
----
-
 ## Tech Stack
 
 - **Frontend**: HTML, JavaScript, TailwindCSS  
