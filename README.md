@@ -1,41 +1,61 @@
 # Trendify – AI Meme Generator
 
-**Tagline:** Generate, edit, and download memes instantly with AI-powered captions.
+**Tagline:** Enter any topic, pick a template, and let AI craft the perfect meme.
 
 ---
 
 ## Project Description
 
-Trendify is a work-in-progress AI-powered meme generator.  
-Users can enter any topic or phrase, and the app suggests meme templates with editable captions. The goal is to make meme creation effortless, fun, and customizable.  
+Trendify is an AI-powered meme generator that makes meme creation **effortless, fun, and customizable**.  
+Users can enter any trending topic or custom phrase, and Trendify will:
 
-Currently, the **frontend is functional** (built with TailwindCSS), while the **backend API for AI caption generation is under development**.
+1. Suggest meme templates based on the topic.  
+2. Generate witty AI-powered captions.  
+3. Let users preview, edit, and download their personalized memes instantly.  
+
+With its modern UI and smooth interactions, Trendify bridges trending culture with creative AI.
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: HTML, JavaScript, TailwindCSS  
-- **Backend (Planned)**: Flask / FastAPI (Python)  
-- **AI/Logic (Planned)**: OpenAI / custom caption generator and meme template selection  
-- **Deployment (Future)**: Netlify/Vercel (frontend) + Render/Heroku (backend)  
+- **Frontend**:  
+  - HTML, JavaScript, TailwindCSS  
+  - Smooth animations & responsive design  
+
+- **Backend**:  
+  - Flask (Python) REST API  
+  - Routes for template search, caption generation, trending topics, customization, and proxy image handling  
+
+- **AI/Logic**:  
+  - AI-based caption suggestion system  
+  - Smart template ranking by topic relevance  
+
+- **Deployment (Planned)**:  
+  - Frontend → Netlify / Vercel  
+  - Backend → Render / Heroku  
 
 ---
 
 ## Features
 
-- Input any topic and generate meme captions (WIP).
-- Preview memes with live caption editing.
-- Download final memes as images.
-- Responsive and animated UI built with TailwindCSS.
-- Backend integration planned for AI-powered captions and template variety.
+-  **Topic Input** – Enter any trending or custom topic.  
+-  **Lucky Mode** – Auto-generate a meme instantly.  
+-  **Search Templates** – Find meme templates relevant to your topic.  
+-  **Template Selection** – Choose from multiple trending meme formats.  
+-  **Editable Captions** – Customize AI-generated captions in real-time.  
+-  **Live Preview** – Instantly preview memes with updated text.  
+-  **Download Ready** – Save final memes as images.  
+-  **Trending Section** – Explore and use current viral topics.  
 
 ---
 
 ## Project Status
 
-- Frontend completed (UI, editing, preview, download).  
-- Backend work in progress (Flask API for AI captions and template handling).  
-- Deployment planned once backend is stable.  
+-  **Frontend Completed** – Fully functional UI with editing, preview, and download.  
+-  **Backend Functional** – Flask API with routes for trending, searching, caption generation, customization, and proxying images.  
+-  **AI Caption Generator** – Under improvement for smarter, funnier captions.  
+-  **Deployment Next Step** – Once AI captions are stable, frontend + backend deployment will go live.  
 
 ---
+
